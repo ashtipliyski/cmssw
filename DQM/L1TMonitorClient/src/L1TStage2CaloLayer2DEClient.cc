@@ -525,7 +525,7 @@ void L1TStage2CaloLayer2DEClient::processHistograms(DQMStore::IGetter &igetter){
   addObjToSummary(igetter, SummaryHist, std::string("/Energy-Sums/ETTEMRank"), "ETTEM Rank");
   addObjToSummary(igetter, SummaryHist, std::string("/Energy-Sums/TowCount"), "Tower Count");
 
-  SummaryHist->LabelsOption("v", "x");
+  //SummaryHist->LabelsOption("v", "x");
   SummaryHist->LabelsDeflate();
 }
 
@@ -539,10 +539,26 @@ void L1TStage2CaloLayer2DEClient::addObjToSummary(DQMStore::IGetter & getter, TH
 
   if (dataHist_ && emulHist_){
 
-    double dataInt = dataHist_->getTH1F()->Integral();
-    double emuInt = emulHist_->getTH1F()->Integral();
+    // double dataInt = dataHist_->getTH1F()->Integral();
+    // double emuInt = emulHist_->getTH1F()->Integral();
+
+		double binVal = 0;
+		double binDiff = 0;
+		double dataBin = 0;
+		double emulBin = 0;
+
+		unsigned int nBins = dataHist_->getTH1F()->GetNbinsX();
+
+		for (unsigned int i = 0; i < nBins; ++i) {
+
+			dataBin = dataHist_->getTH1F()->GetBinContent(i);
+			emulBin = emulHist_->getTH1F()->GetBinContent(i);
+
+		binDiff = dataBin - emulBin;
+			binVal += binDiff * binDiff;
+		}
     
-    hist->Fill(binLabel, dataInt/emuInt);
+    hist->Fill(binLabel, sqrt(binVal)/nBins);
   }
 }  
 
