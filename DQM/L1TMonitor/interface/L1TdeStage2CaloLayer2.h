@@ -23,11 +23,11 @@ class L1TdeStage2CaloLayer2 : public DQMEDAnalyzer {
 
  protected:
   virtual void dqmBeginRun (const edm::Run&, const edm::EventSetup &) override;
-  virtual void beginLuminosityBlock (const edm::LuminosityBlock&, const edm::EventSetup&) override;
+  virtual void beginLuminosityBlock (const edm::LuminosityBlock&, const edm::EventSetup&);
   virtual void bookHistograms (DQMStore::IBooker&, const edm::Run&, const edm::EventSetup&) override;
-  virtual void analyze (const edm::Event&, const edm::EventSetup&) override;	
+  virtual void analyze (const edm::Event&, const edm::EventSetup&) override;
 
- private: 
+ private:
   // Holds the name of directory in DQM where module hostograms will be shown.
   // Value is taken from python configuration file (passed in class constructor)
   std::string monitorDir;
@@ -43,7 +43,8 @@ class L1TdeStage2CaloLayer2 : public DQMEDAnalyzer {
   edm::EDGetTokenT<l1t::EtSumBxCollection> calol2EtSumCollectionEmul;
 
   // objects to represent individual plots shown in DQM
-  MonitorElement * jetPt2DCorrelation;
+  MonitorElement * jetPt2DCorr;
+  MonitorElement * sampleHist;
 
   bool verbose;
 };
