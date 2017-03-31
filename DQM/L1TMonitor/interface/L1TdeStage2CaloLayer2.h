@@ -66,16 +66,16 @@ class L1TdeStage2CaloLayer2 : public DQMEDAnalyzer {
   std::string monitorDir;
 
   enum summaryVars {
-    NEVENTS = 1,  // number of events
-    EVENTGOOD,    // number of good events (100% agreement)
-    EVENTBAD,     // number of bad events (some type of disagreement)
-    NJETS_S,      // number of jets founds in events
+    // NEVENTS = 1,  // number of events
+    EVENTGOOD = 1,    // number of good events (100% agreement)
+    // EVENTBAD,     // number of bad events (some type of disagreement)
+    // NJETS_S,      // number of jets founds in events
     JETGOOD_S,    // number of jets in agreement (energy and pos)
-    NEGS_S,       // number of e/g found in events
+    // NEGS_S,       // number of e/g found in events
     EGGOOD_S,     // number of e/g in agremeent (energy and pos)
-    NTAUS_S,      // number of taus found in events
+    // NTAUS_S,      // number of taus found in events
     TAUGOOD_S,    // number of taus in agremenet (energy and pos)
-    NSUMS_S,	  // total number of sum objects across all events
+    // NSUMS_S,	  // total number of sum objects across all events
     SUMGOOD_S     // number of good sums across all events
   };
 
@@ -167,12 +167,16 @@ class L1TdeStage2CaloLayer2 : public DQMEDAnalyzer {
 
   bool verbose;
 
-  int problematicJets;
-  int goodJets;
-  double goodJetsFrac;
-
-  int totalEvents;
-  int skippedEvents;
+  int totalEvents = 0;
+  int goodEvents = 0;
+  int totalJets = 0;
+  int goodJets = 0;
+  int totalEGs = 0;
+  int goodEGs = 0;
+  int totalTaus = 0;
+  int goodTaus = 0;
+  int totalSums = 0;
+  int goodSums = 0;
 
   const unsigned int currBx = 0;
 };
