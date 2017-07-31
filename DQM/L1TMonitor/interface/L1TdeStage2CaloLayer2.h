@@ -10,6 +10,7 @@
 #include "FWCore/MessageLogger/interface/MessageLogger.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 
+#include "DataFormats/L1TCalorimeter/interface/CaloTower.h"
 #include "DataFormats/L1Trigger/interface/EGamma.h"
 #include "DataFormats/L1Trigger/interface/Jet.h"
 #include "DataFormats/L1Trigger/interface/EtSum.h"
@@ -194,6 +195,9 @@ class L1TdeStage2CaloLayer2 : public DQMEDAnalyzer {
   edm::EDGetTokenT<l1t::EtSumBxCollection> calol2EtSumCollectionData;
   edm::EDGetTokenT<l1t::EtSumBxCollection> calol2EtSumCollectionEmul;
 
+  edm::EDGetTokenT<l1t::CaloTowerBxCollection> calol2TowCollectionData;
+  edm::EDGetTokenT<l1t::CaloTowerBxCollection> calol2TowCollectionEmul;
+
   enum summaryBins {
     NEVENTS = 1,      // total number of events
     EVENTGOOD,        // number of good events (100% agreement)
@@ -364,6 +368,9 @@ class L1TdeStage2CaloLayer2 : public DQMEDAnalyzer {
 
   // use only bx = 0 since it only contains RAW data (needed for emulator)
   const unsigned int currBx = 0;
+
+  unsigned int count = 0;
+  unsigned int countLimit = 1000;
 };
 
 #endif

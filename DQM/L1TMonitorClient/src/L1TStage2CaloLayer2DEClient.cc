@@ -203,7 +203,7 @@ void L1TStage2CaloLayer2DEClient::processHistograms(DQMStore::IGetter &igetter){
   MonitorElement * tauSummary_ = igetter.get(
     "L1TEMU/L1TdeStage2CaloLayer2/expert/Tau Agreement Summary");
   MonitorElement * sumSummary_ = igetter.get(
-    "L1TEMU/L1TdeStage2CaloLayer2/expert/Emergy Sum Agreement Summary");
+    "L1TEMU/L1TdeStage2CaloLayer2/expert/Energy Sum Agreement Summary");
 
   // check for existance of object
   if (hlSummary_) {
@@ -377,7 +377,7 @@ void L1TStage2CaloLayer2DEClient::processHistograms(DQMStore::IGetter &igetter){
     totalSums     = hist->GetBinContent(1);
     goodSums      = hist->GetBinContent(2);
     totalETT      = hist->GetBinContent(3);
-    goodSums      = hist->GetBinContent(4);
+    goodETT       = hist->GetBinContent(4);
     totalHTT      = hist->GetBinContent(5);
     goodHTT       = hist->GetBinContent(6);
     totalMET      = hist->GetBinContent(7);

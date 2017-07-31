@@ -264,7 +264,7 @@ void L1TdeStage2CaloLayer2::bookHistograms(
   tauSummary->getTH1F()->GetXaxis()->SetBinLabel(ISOTAUETOFF,
 						 "iso taus Et off");
   sumSummary = ibooker.book1D(
-    "Emergy Sum Agreement Summary", "Sum Agreement Summary", 14, 1, 15);
+    "Energy Sum Agreement Summary", "Sum Agreement Summary", 14, 1, 15);
   sumSummary->getTH1F()->GetXaxis()->SetBinLabel(NSUMS, "total sums");
   sumSummary->getTH1F()->GetXaxis()->SetBinLabel(SUMGOOD, "good sums");
   sumSummary->getTH1F()->GetXaxis()->SetBinLabel(NETTSUMS, "total ETT sums");
@@ -306,7 +306,8 @@ void L1TdeStage2CaloLayer2::analyze (
   const edm::Event& e,
   const edm::EventSetup & c) {
 
-  // ++totalEvents;
+  if (count > countLimit)
+    exit(1);
 
   if (verbose)
     edm::LogInfo("L1TdeStage2CaloLayer2") << "L1TdeStage2CaloLayer2: analyse "
@@ -321,6 +322,17 @@ void L1TdeStage2CaloLayer2::analyze (
   edm::Handle<l1t::TauBxCollection> tauEmulCol;
   edm::Handle<l1t::EtSumBxCollection> sumDataCol;
   edm::Handle<l1t::EtSumBxCollection> sumEmulCol;
+
+  // edm::Handle<l1t::CaloTowerBxCollection> towDataCol;
+  // edm::Handle<l1t::CaloTowerBxCollection> towEmulCol;
+
+  // e.getByToken(calol2TowCollectionData, towDataCol);
+  // e.getByToken(calol2TowCollectionEmul, towEmulCol);
+
+  // std::cout << "meh: data tow col size: " << towDataCol->size()
+  // 	    << " \t emul tow col size: "  //<< towEmulCol->size() << std::endl;
+  // 	    << std::endl;
+  // exit(1);
 
   // map event contents to above collections
   e.getByToken(calol2JetCollectionData, jetDataCol);
@@ -367,19 +379,27 @@ void L1TdeStage2CaloLayer2::analyze (
   l1t::EtSumBxCollection::const_iterator dataSumIt = sumDataCol->begin(currBx);
   l1t::EtSumBxCollection::const_iterator emulSumIt = sumEmulCol->begin(currBx);
 
+  std::cout << "meh: processing event " << e.id() << " (" << count << ")"
+   	    << " -------------------- "
+   	    << std::endl;
+
   if (!compareJets(jetDataCol, jetEmulCol)) {
+    std::cout << "meh: jet problem" << std::endl;
     eventGood = false;
   }
 
   if (!compareEGs(egDataCol, egEmulCol)) {
+    std::cout << "meh: eg problem" << std::endl;
     eventGood = false;
   }
 
   if (!compareTaus(tauDataCol, tauEmulCol)) {
+    std::cout << "meh: tau problem" << std::endl;
     eventGood = false;
   }
 
   if (!compareSums(sumDataCol, sumEmulCol)) {
+    std::cout << "meh: sum problem" << std::endl;
     eventGood = false;
   }
 
@@ -395,6 +415,8 @@ void L1TdeStage2CaloLayer2::analyze (
 
   agreementHist->Fill(NEVENTS);
   problemSummary->getTH1F()->Fill(NEVENTS_P);
+
+  ++count;
 }
 
 // comparison method for jets
@@ -403,6 +425,7 @@ bool L1TdeStage2CaloLayer2::compareJets(
   const edm::Handle<l1t::JetBxCollection> & emulCol)
 {
   bool eventGood = true;
+  bool debug = true;
 
   l1t::JetBxCollection::const_iterator dataIt = dataCol->begin(currBx);
   l1t::JetBxCollection::const_iterator emulIt = emulCol->begin(currBx);
@@ -419,10 +442,15 @@ bool L1TdeStage2CaloLayer2::compareJets(
   TH1F * summaryHist = agreementSummary->getTH1F();
 
   // process jets
-  if (dataCol->size() != emulCol->size()) {
+  if (dataCol->size(currBx) != emulCol->size(currBx)) {
 
-    if (dataCol->size() < emulCol->size()) {
-      if (dataCol->size() < 1) {
+    std::cout << "meh: jet size problem" << std::endl;
+
+    if (dataCol->size(currBx) < emulCol->size(currBx)) {
+
+      std::cout << "meh: more emul jets" << std::endl;
+
+      if (dataCol->size(currBx) < 1) {
 	return false;
       }
 
@@ -438,7 +466,10 @@ bool L1TdeStage2CaloLayer2::compareJets(
       }
     } else {
 
-      if (emulCol->size() < 1) {
+      std::cout << "meh: more data jets (" << dataCol->size(0)
+		<< " vs " << emulCol->size(0) << ")" << std::endl;
+
+      if (emulCol->size(currBx) < 1) {
 	return false;
       }
 
@@ -448,9 +479,29 @@ bool L1TdeStage2CaloLayer2::compareJets(
 	objEtaHistEmul->Fill(emulIt->hwEta());
 	objPhiHistEmul->Fill(emulIt->hwPhi());
 
+ 	// std::cout << "meh: Jet Et  = " << emulIt->hwPt() << std::endl;
+	// std::cout << "meh: Jet Eta = " << emulIt->hwEta() << std::endl;
+	// std::cout << "meh: Jet phi = " << emulIt->hwPhi() << std::endl;
+
 	++emulIt;
 
 	if (emulIt == emulCol->end(currBx))
+	  break;
+      }
+
+      while (true) {
+
+	objEtHistEmul->Fill(dataIt->hwPt());
+	objEtaHistEmul->Fill(dataIt->hwEta());
+	objPhiHistEmul->Fill(dataIt->hwPhi());
+
+ 	// std::cout << "meh: Jet Et  = " << dataIt->hwPt() << std::endl;
+	// std::cout << "meh: Jet Eta = " << dataIt->hwEta() << std::endl;
+	// std::cout << "meh: Jet phi = " << dataIt->hwPhi() << std::endl;
+
+	++dataIt;
+
+	if (dataIt == dataCol->end(currBx))
 	  break;
       }
     }
@@ -459,9 +510,12 @@ bool L1TdeStage2CaloLayer2::compareJets(
     return false;
   }
 
+  int nJets = 0;
   if (dataIt != dataCol->end(currBx) ||
       emulIt != emulCol->end(currBx)) {
     while(true) {
+
+      ++nJets;
 
       bool posGood = true;
       bool etGood = true;
@@ -476,14 +530,16 @@ bool L1TdeStage2CaloLayer2::compareJets(
       if (dataIt->hwPhi() != emulIt->hwPhi()){
 	posGood = false;
 	eventGood = false;
+
       }
+
       if (dataIt->hwEta() != emulIt->hwEta()) {
 	posGood = false;
 	eventGood = false;
       }
 
       // if both position and energy agree, jet is good
-      if (eventGood) {
+      if (etGood && posGood) {
 	summaryHist->Fill(JETGOOD_S);
 	objSummaryHist->Fill(JETGOOD);
       } else {
@@ -496,16 +552,51 @@ bool L1TdeStage2CaloLayer2::compareJets(
 	objPhiHistEmul->Fill(emulIt->hwPhi());
 
 	problemSummary->getTH1F()->Fill(JETMISMATCH);
+
+	if (debug) {
+	  std::cout << "meh: ---" << std::endl;
+	  std::cout << "meh: data jet Et = " << dataIt->hwPt() << std::endl;
+	  std::cout << "meh: emul jet Et = " << emulIt->hwPt() << std::endl;
+	  std::cout << "meh: data jet phi = " << dataIt->hwPhi() << std::endl;
+	  std::cout << "meh: emul jet phi = " << emulIt->hwPhi() << std::endl;
+	  std::cout << "meh: data jet eta = " << dataIt->hwEta() << std::endl;
+	  std::cout << "meh: emul jet eta = " << emulIt->hwEta() << std::endl;
+	  std::cout << "meh: ---" << std::endl;
+	}
       }
 
       // if only position agrees
       if (posGood && !etGood) {
 	objSummaryHist->Fill(JETETOFF);
+
+	if (debug) {
+	  std::cout << "meh: jet energy pooped" << std::endl;
+	  std::cout << "meh: ---" << std::endl;
+	  std::cout << "meh: data jet Et = " << dataIt->hwPt() << std::endl;
+	  std::cout << "meh: emul jet Et = " << emulIt->hwPt() << std::endl;
+	  std::cout << "meh: data jet phi = " << dataIt->hwPhi() << std::endl;
+	  std::cout << "meh: emul jet phi = " << emulIt->hwPhi() << std::endl;
+	  std::cout << "meh: data jet eta = " << dataIt->hwEta() << std::endl;
+	  std::cout << "meh: emul jet eta = " << emulIt->hwEta() << std::endl;
+	  std::cout << "meh: ---" << std::endl;
+	}
       }
 
       // if only energy agrees
       if (!posGood && etGood) {
 	objSummaryHist->Fill(JETPOSOFF);
+
+	if (debug) {
+	  std::cout << "meh: jet position pooped" << std::endl;
+	  std::cout << "meh: ---" << std::endl;
+	  std::cout << "meh: data jet Et = " << dataIt->hwPt() << std::endl;
+	  std::cout << "meh: emul jet Et = " << emulIt->hwPt() << std::endl;
+	  std::cout << "meh: data jet phi = " << dataIt->hwPhi() << std::endl;
+	  std::cout << "meh: emul jet phi = " << emulIt->hwPhi() << std::endl;
+	  std::cout << "meh: data jet eta = " << dataIt->hwEta() << std::endl;
+	  std::cout << "meh: emul jet eta = " << emulIt->hwEta() << std::endl;
+	  std::cout << "meh: ---" << std::endl;
+	}
       }
 
       // keep track of jets
@@ -521,8 +612,8 @@ bool L1TdeStage2CaloLayer2::compareJets(
 	break;
     }
   } else {
-
-    return false;
+    if (dataCol->size(currBx) != 0 || emulCol->size(currBx) != 0)
+      return false;
   }
 
   // return a boolean that states whether the jet data in the event is in
@@ -536,6 +627,7 @@ bool L1TdeStage2CaloLayer2::compareEGs(
   const edm::Handle<l1t::EGammaBxCollection> & emulCol)
 {
   bool eventGood = true;
+  bool debug = true;
 
   l1t::EGammaBxCollection::const_iterator dataIt = dataCol->begin(currBx);
   l1t::EGammaBxCollection::const_iterator emulIt = emulCol->begin(currBx);
@@ -558,10 +650,13 @@ bool L1TdeStage2CaloLayer2::compareEGs(
   TH1F * summaryHist = agreementSummary->getTH1F();
 
   // check length of collections
-  if (dataCol->size() != emulCol->size()) {
+  if (dataCol->size(currBx) != emulCol->size(currBx)) {
 
-    if (dataCol->size() < emulCol->size()) {
-      if (dataCol->size() < 1)
+    if (dataCol->size(currBx) < emulCol->size(currBx)) {
+
+      std::cout << "meh: more data egs" << std::endl;
+
+      if (dataCol->size(currBx) < 1)
 	return false;
 
       // if there are more events in data loop over the data collection
@@ -585,8 +680,10 @@ bool L1TdeStage2CaloLayer2::compareEGs(
       }
     } else {
 
-      if (emulCol->size() < 1)
+      std::cout << "meh: more emul egs" << std::endl;
+      if (emulCol->size(currBx) < 1) {
 	return false;
+      }
 
       while (true) {
 
@@ -627,20 +724,23 @@ bool L1TdeStage2CaloLayer2::compareEGs(
       if (dataIt->hwPt() != emulIt->hwPt()) {
 	etGood = false;
 	eventGood = false;
+	// std::cout << "meh: eg Et mismatch" << std::endl;
       }
 
       // object position mismatch
       if (dataIt->hwPhi() != emulIt->hwPhi()) {
 	posGood = false;
 	eventGood = false;
+	// std::cout << "meh: eg phi mismatch" << std::endl;
       }
       if (dataIt->hwEta() != emulIt->hwEta()) {
 	posGood = false;
 	eventGood = false;
+	// std::cout << "meh: eg Eta mismatch" << std::endl;
       }
 
       // if both position and energy agree, object is good
-      if (eventGood) {
+      if (posGood && etGood) {
 	summaryHist->Fill(EGGOOD_S);
 
 	if (iso) {
@@ -667,6 +767,18 @@ bool L1TdeStage2CaloLayer2::compareEGs(
 	  objEtHistEmul->Fill(emulIt->hwPt());
 	  objEtaHistEmul->Fill(emulIt->hwEta());
 	  objPhiHistEmul->Fill(emulIt->hwPhi());
+	}
+
+	if (debug) {
+	  std::cout << "meh: eg is pooped" << std::endl;
+	  std::cout << "meh: ------------" << std::endl;
+	  std::cout << "meh: data eg Et = " << dataIt->hwPt() << std::endl;
+	  std::cout << "meh: emul eg Et = " << emulIt->hwPt() << std::endl;
+	  std::cout << "meh: data eg Phi = " << dataIt->hwPhi() << std::endl;
+	  std::cout << "meh: emul eg Phi = " << emulIt->hwPhi() << std::endl;
+	  std::cout << "meh: data eg Eta = " << dataIt->hwEta() << std::endl;
+	  std::cout << "meh: emul eg Eta = " << emulIt->hwEta() << std::endl;
+	  std::cout << "meh: ------------" << std::endl;
 	}
 
 	problemSummary->getTH1F()->Fill(EGMISMATCH);
@@ -707,7 +819,8 @@ bool L1TdeStage2CaloLayer2::compareEGs(
 	break;
     }
   } else {
-    return false;
+    if (dataCol->size(currBx) != 0 || emulCol->size(currBx) != 0)
+      return false;
   }
 
   // return a boolean that states whether the jet data in the event is in
@@ -721,6 +834,7 @@ bool L1TdeStage2CaloLayer2::compareTaus(
   const edm::Handle<l1t::TauBxCollection> & emulCol)
 {
   bool eventGood = true;
+  bool debug = true;
 
   l1t::TauBxCollection::const_iterator dataIt = dataCol->begin(currBx);
   l1t::TauBxCollection::const_iterator emulIt = emulCol->begin(currBx);
@@ -743,10 +857,13 @@ bool L1TdeStage2CaloLayer2::compareTaus(
   TH1F * summaryHist = agreementSummary->getTH1F();
 
   // check length of collections
-  if (dataCol->size() != emulCol->size()) {
+  if (dataCol->size(currBx) != emulCol->size(currBx)) {
 
-    if (dataCol->size() < emulCol->size()) {
-      if (dataCol->size() < 1)
+    if (dataCol->size(currBx) < emulCol->size(currBx)) {
+
+      std::cout << "meh: more data taus" << std::endl;
+
+      if (dataCol->size(currBx) < 1)
 	return false;
 
       // if there are more events in data loop over the data collection
@@ -771,7 +888,8 @@ bool L1TdeStage2CaloLayer2::compareTaus(
       }
     } else {
 
-      if (emulCol->size() < 1)
+      std::cout << "meh: more emul taus" << std::endl;
+      if (emulCol->size(currBx) < 1)
 	return false;
 
       while (true) {
@@ -826,7 +944,7 @@ bool L1TdeStage2CaloLayer2::compareTaus(
       }
 
       // if both position and energy agree, object is good
-      if (eventGood) {
+      if (posGood && etGood) {
 	summaryHist->Fill(TAUGOOD_S);
 
 	if (iso) {
@@ -853,6 +971,18 @@ bool L1TdeStage2CaloLayer2::compareTaus(
 	  objEtHistEmul->Fill(emulIt->hwPt());
 	  objEtaHistEmul->Fill(emulIt->hwEta());
 	  objPhiHistEmul->Fill(emulIt->hwPhi());
+	}
+
+	if (debug) {
+	  std::cout << "meh: tau is pooped" << std::endl;
+	  std::cout << "meh: ------------" << std::endl;
+	  std::cout << "meh: data tau Et = " << dataIt->hwPt() << std::endl;
+	  std::cout << "meh: emul tau Et = " << emulIt->hwPt() << std::endl;
+	  std::cout << "meh: data tau Phi = " << dataIt->hwPhi() << std::endl;
+	  std::cout << "meh: emul tau Phi = " << emulIt->hwPhi() << std::endl;
+	  std::cout << "meh: data tau Eta = " << dataIt->hwEta() << std::endl;
+	  std::cout << "meh: emul tau Eta = " << emulIt->hwEta() << std::endl;
+	  std::cout << "meh: ------------" << std::endl;
 	}
 
 	problemSummary->getTH1F()->Fill(TAUMISMATCH);
@@ -894,7 +1024,8 @@ bool L1TdeStage2CaloLayer2::compareTaus(
 	break;
     }
   } else {
-    return false;
+    if (dataCol->size(currBx) != 0 || emulCol->size(currBx) != 0)
+      return false;
   }
 
   // return a boolean that states whether the jet data in the event is in
@@ -908,9 +1039,15 @@ bool L1TdeStage2CaloLayer2::compareSums(
   const edm::Handle<l1t::EtSumBxCollection> & emulCol)
 {
   bool eventGood = true;
+  bool debug = true;
 
   bool etGood = true;
   bool phiGood = true;
+
+  double dataEt = 0;
+  double emulEt = 0;
+  double dataPhi = 0;
+  double emulPhi = 0;
 
   l1t::EtSumBxCollection::const_iterator dataIt = dataCol->begin(currBx);
   l1t::EtSumBxCollection::const_iterator emulIt = emulCol->begin(currBx);
@@ -928,285 +1065,598 @@ bool L1TdeStage2CaloLayer2::compareSums(
     // ETT
     if (l1t::EtSum::EtSumType::kTotalEt == dataIt->getType()) {
 
-      objSummaryHist->Fill(NETTSUMS);
-      summaryHist->Fill(NSUMS_S);
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      objSummaryHist->Fill(NETTSUMS);
+
+      if (dataEt != emulEt) {
 	eventGood = false;
 
-	ettData->getTH1F()->Fill(dataIt->hwPt());
-	ettEmul->getTH1F()->Fill(emulIt->hwPt());
+	ettData->getTH1F()->Fill(dataEt);
+	ettEmul->getTH1F()->Fill(emulEt);
 
+	// if (debug) {
+	//   std::cout << "meh: ETT issue" << std::endl;
+	//   std::cout << "meh: data ETT = " << dataEt << std::endl;
+	//   std::cout << "meh: emul ETT = " << emulEt << std::endl;
+	// }
       } else {
 	summaryHist->Fill(SUMGOOD_S);
 	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(ETTSUMGOOD);
       }
-    }
 
-    // ETTHF
-    if (l1t::EtSum::EtSumType::kTotalEtHF == dataIt->getType()) {
-
-      objSummaryHist->Fill(NETTSUMS);
-      summaryHist->Fill(NSUMS_S);
-
-      if (dataIt->hwPt() != emulIt->hwPt()) {
-	eventGood = false;
-
-	ettHFData->getTH1F()->Fill(dataIt->hwPt());
-	ettHFEmul->getTH1F()->Fill(emulIt->hwPt());
-
-      } else {
-	summaryHist->Fill(SUMGOOD_S);
-	objSummaryHist->Fill(SUMGOOD);
-	objSummaryHist->Fill(ETTSUMGOOD);
+      if (debug) {
+	std::cout << "meh: ETT       | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
       }
     }
+
+    // // ETTHF
+    // if (l1t::EtSum::EtSumType::kTotalEtHF == dataIt->getType()) {
+
+    //   objSummaryHist->Fill(NETTSUMS);
+    //   summaryHist->Fill(NSUMS_S);
+
+    //   if (dataEt != emulEt) {
+    // 	eventGood = false;
+
+    // 	ettHFData->getTH1F()->Fill(dataEt);
+    // 	ettHFEmul->getTH1F()->Fill(emulEt);
+
+    // 	// if (debug) {
+    // 	//   std::cout << "meh: ETTHF issue" << std::endl;
+    // 	//   std::cout << "meh: data ETTHF = " << dataEt << std::endl;
+    // 	//   std::cout << "meh: emul ETTHF = " << emulEt << std::endl;
+    // 	// }
+
+    //   } else {
+    // 	summaryHist->Fill(SUMGOOD_S);
+    // 	objSummaryHist->Fill(SUMGOOD);
+    // 	objSummaryHist->Fill(ETTSUMGOOD);
+    //   }
+
+    //   if (debug) {
+    // 	std::cout << "meh: ETTHF = " << dataEt << "\t" << emulEt
+    // 		  << std::endl;
+    //   }
+    // }
 
     // ETTEM
     if (l1t::EtSum::EtSumType::kTotalEtEm == dataIt->getType()) {
 
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
+
       objSummaryHist->Fill(NETTSUMS);
-      summaryHist->Fill(NSUMS_S);
+      //summaryHist->Fill(NSUMS_S);
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      if (dataEt != emulEt) {
 	eventGood = false;
-	ettEmData->getTH1F()->Fill(dataIt->hwPt());
-	ettEmEmul->getTH1F()->Fill(emulIt->hwPt());
+	ettEmData->getTH1F()->Fill(dataEt);
+	ettEmEmul->getTH1F()->Fill(emulEt);
 
+	// if (debug) {
+	//   std::cout << "meh: ETTEM issue" << std::endl;
+	//   std::cout << "meh: data ETTEM = " << dataEt << std::endl;
+	//   std::cout << "meh: emul ETTEM = " << emulEt << std::endl;
+	// }
       } else {
 	summaryHist->Fill(SUMGOOD_S);
 	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(ETTSUMGOOD);
+      }
+
+      if (debug) {
+	std::cout << "meh: ETTEM     | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
       }
     }
 
     // HTT
     if (l1t::EtSum::EtSumType::kTotalHt == dataIt->getType()) {
 
-      objSummaryHist->Fill(NHTTSUMS);
-      summaryHist->Fill(NSUMS_S);
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      objSummaryHist->Fill(NHTTSUMS);
+      // summaryHist->Fill(NSUMS_S);
+
+      if (dataEt != emulEt) {
 	eventGood = false;
-	httData->getTH1F()->Fill(dataIt->hwPt());
-	httEmul->getTH1F()->Fill(emulIt->hwPt());
+	httData->getTH1F()->Fill(dataEt);
+	httEmul->getTH1F()->Fill(emulEt);
+
+	// if (debug) {
+	//   std::cout << "meh: HTT issue" << std::endl;
+	//   std::cout << "meh: data HTT = " << dataEt << std::endl;
+	//   std::cout << "meh: emul HTT = " << emulEt << std::endl;
+	// }
       } else {
 	summaryHist->Fill(SUMGOOD_S);
 	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(HTTSUMGOOD);
       }
-    }
 
-    // HTTHF
-    if (l1t::EtSum::EtSumType::kTotalHtHF == dataIt->getType()) {
-
-      objSummaryHist->Fill(NHTTSUMS);
-      summaryHist->Fill(NSUMS_S);
-
-      if (dataIt->hwPt() != emulIt->hwPt()) {
-	eventGood = false;
-	httHFData->getTH1F()->Fill(dataIt->hwPt());
-	httHFEmul->getTH1F()->Fill(emulIt->hwPt());
-      } else {
-	summaryHist->Fill(SUMGOOD_S);
-	objSummaryHist->Fill(SUMGOOD);
-	objSummaryHist->Fill(HTTSUMGOOD);
+      if (debug) {
+	std::cout << "meh: HTT       | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
       }
     }
+
+    // // HTTHF
+    // if (l1t::EtSum::EtSumType::kTotalHtHF == dataIt->getType()) {
+
+    //   dataEt = dataIt->hwPt();
+    //   emulEt = emulIt->hwPt();
+
+    //   objSummaryHist->Fill(NHTTSUMS);
+    //   summaryHist->Fill(NSUMS_S);
+
+    //   if (dataEt != emulEt) {
+    // 	eventGood = false;
+    // 	httHFData->getTH1F()->Fill(dataEt);
+    // 	httHFEmul->getTH1F()->Fill(emulEt);
+
+    // 	// if (debug) {
+    // 	//   std::cout << "meh: HTTHF issue" << std::endl;
+    // 	//   std::cout << "meh: data HTTHF = " << dataEt << std::endl;
+    // 	//   std::cout << "meh: emul HTTHF = " << emulEt << std::endl;
+    // 	// }
+
+    //   } else {
+    // 	summaryHist->Fill(SUMGOOD_S);
+    // 	objSummaryHist->Fill(SUMGOOD);
+    // 	objSummaryHist->Fill(HTTSUMGOOD);
+    //   }
+
+    //   if (debug) {
+    // 	std::cout << "meh: HTTHF     | " << dataEt << "\t"
+    // 		  << emulEt << " | ";
+    // 	std::cout << std::endl;
+    //   }
+    // }
 
     // MET
-    if (l1t::EtSum::EtSumType::kMissingEt == dataIt->getType()) {
+    if (l1t::EtSum::EtSumType::kMissingEt == dataIt->getType()
+	&& dataIt->hwPt() != 0) {
+
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
+
+      dataPhi = dataIt->hwPhi();
+      emulPhi = emulIt->hwPhi();
 
       objSummaryHist->Fill(NMETSUMS);
-      summaryHist->Fill(NSUMS_S);
+      // summaryHist->Fill(NSUMS_S);
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      if (dataEt != emulEt) {
 	etGood = false;
 	eventGood = false;
       }
 
-      if (dataIt->hwPhi() != emulIt->hwPhi()) {
+      if (dataPhi != emulPhi) {
 	phiGood = false;
 	eventGood = false;
       }
 
       if (etGood && phiGood) {
 	summaryHist->Fill(SUMGOOD_S);
+	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(METSUMGOOD);
       } else {
-	metEtData->getTH1F()->Fill(dataIt->hwPt());
-	metPhiData->getTH1F()->Fill(dataIt->hwPhi());
-	metEtEmul->getTH1F()->Fill(emulIt->hwPt());
-	metPhiEmul->getTH1F()->Fill(emulIt->hwPhi());
+	metEtData->getTH1F()->Fill(dataEt);
+	metPhiData->getTH1F()->Fill(dataPhi);
+	metEtEmul->getTH1F()->Fill(emulEt);
+	metPhiEmul->getTH1F()->Fill(emulPhi);
 
+	// if (debug) {
+	//   std::cout << "meh: MET issue" << std::endl;
+	//   std::cout << "meh: data MET = " << dataEt << std::endl;
+	//   std::cout << "meh: emul MET = " << emulEt << std::endl;
+	//   std::cout << "meh: data MET phi = " << dataPhi << std::endl;
+	//   std::cout << "meh: emul MET phi = " << emulPhi << std::endl;
+	// }
+      }
+
+      if (debug) {
+	std::cout << "meh: MET       | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
+	std::cout << "meh: MET phi   | ";
+	if (dataPhi != emulPhi)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout<< dataPhi << "\t" << emulPhi;
+	std::cout << std::endl;
       }
     }
 
     // METHF
-    if (l1t::EtSum::EtSumType::kMissingEtHF == dataIt->getType()) {
+    if (l1t::EtSum::EtSumType::kMissingEtHF == dataIt->getType()
+	&& dataIt->hwPt() != 0) {
+
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
+
+      dataPhi = dataIt->hwPhi();
+      emulPhi = emulIt->hwPhi();
 
       objSummaryHist->Fill(NMETSUMS);
-      summaryHist->Fill(NSUMS_S);
 
-
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      if (dataEt != emulEt) {
 	etGood = false;
 	eventGood = false;
       }
 
-      if (dataIt->hwPhi() != emulIt->hwPhi()) {
+      if (dataPhi != emulPhi) {
 	phiGood = false;
 	eventGood = false;
       }
 
       if (etGood && phiGood) {
 	summaryHist->Fill(SUMGOOD_S);
+	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(METSUMGOOD);
       } else {
-	metHFEtData->getTH1F()->Fill(dataIt->hwPt());
-	metHFPhiData->getTH1F()->Fill(dataIt->hwPhi());
-	metHFEtEmul->getTH1F()->Fill(emulIt->hwPt());
-	metHFPhiEmul->getTH1F()->Fill(emulIt->hwPhi());
+	metHFEtData->getTH1F()->Fill(dataEt);
+	metHFPhiData->getTH1F()->Fill(dataPhi);
+	metHFEtEmul->getTH1F()->Fill(emulEt);
+	metHFPhiEmul->getTH1F()->Fill(emulPhi);
+
+	// if (debug) {
+	//   std::cout << "meh: METHF issue" << std::endl;
+	//   std::cout << "meh: data METHF = " << dataEt << std::endl;
+	//   std::cout << "meh: emul METHF = " << emulEt << std::endl;
+	//   std::cout << "meh: data METHF phi = " << dataPhi << std::endl;
+	//   std::cout << "meh: emul METHF phi = " << emulPhi << std::endl;
+	// }
+      }
+
+      if (debug) {
+	std::cout << "meh: METHF     | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
+	std::cout << "meh: METHF phi | ";
+	if (dataPhi != emulPhi)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataPhi << "\t" << emulPhi;
+	std::cout << std::endl;
       }
     }
 
     // MHT
-    if (l1t::EtSum::EtSumType::kMissingHtHF == dataIt->getType()) {
+    if (l1t::EtSum::EtSumType::kMissingHt == dataIt->getType()
+	&& dataIt->hwPt() != 0) {
+
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
+
+      dataPhi = dataPhi;
+      emulPhi = emulIt->hwPhi();
 
       objSummaryHist->Fill(NMHTSUMS);
-      summaryHist->Fill(NSUMS_S);
+      // summaryHist->Fill(NSUMS_S);
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      if (dataEt != emulEt) {
 	etGood = false;
 	eventGood = false;
       }
 
-      if (dataIt->hwPhi() != emulIt->hwPhi()) {
-	phiGood = false;
-	eventGood = false;
+      if (!(etGood && dataEt == 0)) {
+	if (dataPhi != emulPhi) {
+	  phiGood = false;
+	  eventGood = false;
+	}
       }
 
       if (etGood && phiGood) {
 	summaryHist->Fill(SUMGOOD_S);
+	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(MHTSUMGOOD);
       } else {
-	mhtEtData->getTH1F()->Fill(dataIt->hwPt());
-	mhtPhiData->getTH1F()->Fill(dataIt->hwPhi());
-	mhtEtEmul->getTH1F()->Fill(emulIt->hwPt());
-	mhtPhiEmul->getTH1F()->Fill(emulIt->hwPhi());
+	mhtEtData->getTH1F()->Fill(dataEt);
+	mhtPhiData->getTH1F()->Fill(dataPhi);
+	mhtEtEmul->getTH1F()->Fill(emulEt);
+	mhtPhiEmul->getTH1F()->Fill(emulPhi);
+
+	// if (debug) {
+	//   std::cout << "meh: MHT issue" << std::endl;
+	//   std::cout << "meh: data MHT = " << dataEt << std::endl;
+	//   std::cout << "meh: emul MHT = " << emulEt << std::endl;
+	//   std::cout << "meh: data MHT phi = " << dataPhi << std::endl;
+	//   std::cout << "meh: emul MHT phi = " << emulPhi << std::endl;
+	// }
+
+	std::cout << "meh: MHT issue" << std::endl;
+      }
+
+      if (debug) {
+	std::cout << "meh: MHT       | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
+	std::cout << "meh: MHT phi   | ";
+	if (dataPhi != emulPhi)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataPhi << "\t" << emulPhi;
+	std::cout << std::endl;
       }
     }
 
     // MHTHF
-    if (l1t::EtSum::EtSumType::kMissingEt == dataIt->getType()) {
+    if (l1t::EtSum::EtSumType::kMissingHtHF == dataIt->getType()
+	&& dataIt->hwPt() != 0) {
+
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
+
+      dataPhi = dataPhi;
+      emulPhi = emulIt->hwPhi();
 
       objSummaryHist->Fill(NMHTSUMS);
-      summaryHist->Fill(NSUMS_S);
+      // summaryHist->Fill(NSUMS_S);
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      if (dataEt != emulEt) {
 	phiGood = false;
 	eventGood = false;
       }
 
-      if (dataIt->hwPhi() != emulIt->hwPhi()) {
-	phiGood = false;
-	eventGood = false;
+      if (!(etGood && dataEt == 0)) {
+	if (dataPhi != emulPhi) {
+	  phiGood = false;
+	  eventGood = false;
+	}
       }
 
       if (etGood && phiGood) {
 	summaryHist->Fill(SUMGOOD_S);
+	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(MHTSUMGOOD);
       } else {
-       	mhtHFEtData->getTH1F()->Fill(dataIt->hwPt());
-	mhtHFPhiData->getTH1F()->Fill(dataIt->hwPhi());
-	mhtHFEtEmul->getTH1F()->Fill(emulIt->hwPt());
-	mhtHFPhiEmul->getTH1F()->Fill(emulIt->hwPhi());
+       	mhtHFEtData->getTH1F()->Fill(dataEt);
+	mhtHFPhiData->getTH1F()->Fill(dataPhi);
+	mhtHFEtEmul->getTH1F()->Fill(emulEt);
+	mhtHFPhiEmul->getTH1F()->Fill(emulPhi);
+
+	// if (debug) {
+	//   std::cout << "meh: ----  MHTHF" << std::endl;
+	//   std::cout << "meh: data MHTHF = " << dataEt << std::endl;
+	//   std::cout << "meh: emul MHTHF = " << emulEt << std::endl;
+	//   std::cout << "meh: data MHTHF phi = " << dataPhi << std::endl;
+	//   std::cout << "meh: emul MHTHF phi = " << emulPhi << std::endl;
+	// }
+      }
+
+      if (debug) {
+	std::cout << "meh: MHTHF     | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout  << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
+	std::cout << "meh: MHTHF phi | ";
+	if (dataPhi != emulPhi)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataPhi << "\t" << emulPhi;
+	std::cout << std::endl;
       }
     }
 
     // MBHFP0
     if (l1t::EtSum::EtSumType::kMinBiasHFP0 == dataIt->getType()) {
 
-      objSummaryHist->Fill(NMBHFSUMS);
-      summaryHist->Fill(NSUMS_S);
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      objSummaryHist->Fill(NMBHFSUMS);
+      // summaryHist->Fill(NSUMS_S);
+
+      if (dataEt != emulEt) {
 	eventGood = false;
-	mbhfp0Data->getTH1F()->Fill(dataIt->hwPt());
-	mbhfp0Emul->getTH1F()->Fill(emulIt->hwPt());
+	mbhfp0Data->getTH1F()->Fill(dataEt);
+	mbhfp0Emul->getTH1F()->Fill(emulEt);
+
+	// if (debug) {
+	//   std::cout << "meh: MBHFP0 issue" << std::endl;
+	//   std::cout << "meh: data MBHFP0 = " << dataEt << std::endl;
+	//   std::cout << "meh: emul MBHFP0 = " << emulEt << std::endl;
+	// }
+
       } else {
 	summaryHist->Fill(SUMGOOD_S);
 	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(MBHFSUMGOOD);
+      }
+
+      if (debug) {
+	std::cout << "meh: MBHFP0    | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout  << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
       }
     }
 
     // MBHFM0
     if (l1t::EtSum::EtSumType::kMinBiasHFM0 == dataIt->getType()) {
 
-      objSummaryHist->Fill(NMBHFSUMS);
-      summaryHist->Fill(NSUMS_S);
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      objSummaryHist->Fill(NMBHFSUMS);
+      // summaryHist->Fill(NSUMS_S);
+
+      if (dataEt != emulEt) {
 	eventGood = false;
-	mbhfm0Data->getTH1F()->Fill(dataIt->hwPt());
-	mbhfm0Emul->getTH1F()->Fill(emulIt->hwPt());
+	mbhfm0Data->getTH1F()->Fill(dataEt);
+	mbhfm0Emul->getTH1F()->Fill(emulEt);
+
+	// if (debug) {
+	//   std::cout << "meh: MBHFM0 issue" << std::endl;
+	//   std::cout << "meh: data MBHFM0 = " << dataEt << std::endl;
+	//   std::cout << "meh: emul MBHFM0 = " << emulEt << std::endl;
+	// }
       } else {
 	summaryHist->Fill(SUMGOOD_S);
 	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(MBHFSUMGOOD);
+      }
+
+      if (debug) {
+	std::cout << "meh: MBHFM0    | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
       }
     }
 
     // MBHFP1
     if (l1t::EtSum::EtSumType::kMinBiasHFP1 == dataIt->getType()) {
 
-      objSummaryHist->Fill(NMBHFSUMS);
-      summaryHist->Fill(NSUMS_S);
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      objSummaryHist->Fill(NMBHFSUMS);
+      // summaryHist->Fill(NSUMS_S);
+
+      if (dataEt != emulEt) {
 	eventGood = false;
-	mbhfp1Data->getTH1F()->Fill(dataIt->hwPt());
-	mbhfp1Emul->getTH1F()->Fill(emulIt->hwPt());
+	mbhfp1Data->getTH1F()->Fill(dataEt);
+	mbhfp1Emul->getTH1F()->Fill(emulEt);
+
+	// if (debug) {
+	//   std::cout << "meh: MBHFP1 issue" << std::endl;
+	//   std::cout << "meh: data MBHFP1 = " << dataEt << std::endl;
+	//   std::cout << "meh: emul MBHFP1 = " << emulEt << std::endl;
+	// }
       } else {
 	summaryHist->Fill(SUMGOOD_S);
 	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(MBHFSUMGOOD);
+      }
+
+      if (debug) {
+	std::cout << "meh: MBHFP1    | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout  << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
       }
     }
 
     // MBHFM1
     if (l1t::EtSum::EtSumType::kMinBiasHFM1 == dataIt->getType()) {
 
-      objSummaryHist->Fill(NMBHFSUMS);
-      summaryHist->Fill(NSUMS_S);
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      objSummaryHist->Fill(NMBHFSUMS);
+      // summaryHist->Fill(NSUMS_S);
+
+      if (dataEt != emulEt) {
 	eventGood = false;
-	mbhfm1Data->getTH1F()->Fill(dataIt->hwPt());
-	mbhfm1Emul->getTH1F()->Fill(emulIt->hwPt());
+	mbhfm1Data->getTH1F()->Fill(dataEt);
+	mbhfm1Emul->getTH1F()->Fill(emulEt);
+
+	// if (debug) {
+	//   std::cout << "meh: MBHFM1 issue" << std::endl;
+	//   std::cout << "meh: data MBHFM1 = " << dataEt << std::endl;
+	//   std::cout << "meh: emul MBHFM1 = " << emulEt << std::endl;
+	// }
+
       } else {
 	summaryHist->Fill(SUMGOOD_S);
 	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(MBHFSUMGOOD);
+      }
+
+      if (debug) {
+	std::cout << "meh: MBHFM1    | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout << dataEt << "\t" << emulEt;
+	std::cout  << std::endl;
       }
     }
 
     // TowerCount
     if (l1t::EtSum::EtSumType::kTowerCount == dataIt->getType()) {
 
-      objSummaryHist->Fill(NTOWCOUNTS);
-      summaryHist->Fill(NSUMS_S);
+      dataEt = dataIt->hwPt();
+      emulEt = emulIt->hwPt();
 
-      if (dataIt->hwPt() != emulIt->hwPt()) {
+      objSummaryHist->Fill(NTOWCOUNTS);
+      // summaryHist->Fill(NSUMS_S);
+
+      if (dataEt != emulEt) {
 	eventGood = false;
-	towCountData->getTH1F()->Fill(dataIt->hwPt());
-	towCountEmul->getTH1F()->Fill(emulIt->hwPt());
+	towCountData->getTH1F()->Fill(dataEt);
+	towCountEmul->getTH1F()->Fill(emulEt);
+
+	// if (debug) {
+	//   std::cout << "meh: TowCount issue" << std::endl;
+	//   std::cout << "meh: data TowCount = " << dataEt << std::endl;
+	//   std::cout << "meh: emul TowCount = " << emulEt << std::endl;
+	// }
       } else {
 	summaryHist->Fill(SUMGOOD_S);
 	objSummaryHist->Fill(SUMGOOD);
 	objSummaryHist->Fill(TOWCOUNTGOOD);
+      }
+
+      if (debug) {
+	std::cout << "meh: TowCount  | ";
+	if (dataEt != emulEt)
+	  std::cout << "x ";
+	else
+	  std::cout << "  ";
+	std::cout  << dataEt << "\t" << emulEt;
+	std::cout << std::endl;
       }
     }
 
@@ -1221,7 +1671,7 @@ bool L1TdeStage2CaloLayer2::compareSums(
   }
 
   if (eventGood) {
-    summaryHist->Fill(SUMGOOD_S);
+    objSummaryHist->Fill(SUMGOOD);
   } else {
     problemHist->Fill(SUMMISMATCH);
   }
