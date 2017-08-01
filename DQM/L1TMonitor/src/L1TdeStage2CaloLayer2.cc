@@ -385,21 +385,25 @@ void L1TdeStage2CaloLayer2::analyze (
 
   if (!compareJets(jetDataCol, jetEmulCol)) {
     std::cout << "meh: jet problem" << std::endl;
+    problemSummary->getTH1F()->Fill(JETMISMATCH);
     eventGood = false;
   }
 
   if (!compareEGs(egDataCol, egEmulCol)) {
     std::cout << "meh: eg problem" << std::endl;
+    problemSummary->getTH1F()->Fill(EGMISMATCH);
     eventGood = false;
   }
 
   if (!compareTaus(tauDataCol, tauEmulCol)) {
     std::cout << "meh: tau problem" << std::endl;
+    problemSummary->getTH1F()->Fill(TAUMISMATCH);
     eventGood = false;
   }
 
   if (!compareSums(sumDataCol, sumEmulCol)) {
     std::cout << "meh: sum problem" << std::endl;
+    problemSummary->getTH1F()->Fill(SUMMISMATCH);
     eventGood = false;
   }
 
@@ -551,7 +555,7 @@ bool L1TdeStage2CaloLayer2::compareJets(
 	objEtaHistEmul->Fill(emulIt->hwEta());
 	objPhiHistEmul->Fill(emulIt->hwPhi());
 
-	problemSummary->getTH1F()->Fill(JETMISMATCH);
+	// problemSummary->getTH1F()->Fill(JETMISMATCH);
 
 	if (debug) {
 	  std::cout << "meh: ---" << std::endl;
@@ -781,7 +785,7 @@ bool L1TdeStage2CaloLayer2::compareEGs(
 	  std::cout << "meh: ------------" << std::endl;
 	}
 
-	problemSummary->getTH1F()->Fill(EGMISMATCH);
+	// problemSummary->getTH1F()->Fill(EGMISMATCH);
       }
 
       // if only position agrees
@@ -985,7 +989,7 @@ bool L1TdeStage2CaloLayer2::compareTaus(
 	  std::cout << "meh: ------------" << std::endl;
 	}
 
-	problemSummary->getTH1F()->Fill(TAUMISMATCH);
+
       }
 
       // if only position agrees
@@ -1673,7 +1677,7 @@ bool L1TdeStage2CaloLayer2::compareSums(
   if (eventGood) {
     objSummaryHist->Fill(SUMGOOD);
   } else {
-    problemHist->Fill(SUMMISMATCH);
+    // problemHist->Fill(SUMMISMATCH);
   }
 
   // return a boolean that states whether the jet data in the event is in
