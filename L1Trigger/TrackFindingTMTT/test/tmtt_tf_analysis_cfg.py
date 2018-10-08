@@ -34,7 +34,7 @@ options.register('inputMC', 'MCsamples/937/RelVal/TTbar/PU200.txt',
 VarParsing.VarParsing.multiplicity.singleton, VarParsing.VarParsing.varType.string, "Files to be processed")
 
 #--- Specify number of events to process.
-options.register('Events',100,VarParsing.VarParsing.multiplicity.singleton, VarParsing.VarParsing.varType.int,"Number of Events to analyze")
+options.register('Events',-1,VarParsing.VarParsing.multiplicity.singleton, VarParsing.VarParsing.varType.int,"Number of Events to analyze")
 
 #--- Specify name of output histogram file. (If name = '', then no histogram file will be produced).
 options.register('histFile','Hist.root',VarParsing.VarParsing.multiplicity.singleton, VarParsing.VarParsing.varType.string,"Name of output histogram file")
@@ -44,17 +44,22 @@ options.register('makeStubs',0,VarParsing.VarParsing.multiplicity.singleton,VarP
 
 #--- Specify whether to output a GEN-SIM-DIGI-RAW dataset containing the TMTT L1 tracks & associators.
 # (Warning: you may need to edit the associator python below to specify which track fitter you are using).
-options.register('outputDataset',0,VarParsing.VarParsing.multiplicity.singleton,VarParsing.VarParsing.varType.int,"Create GEN-SIM-DIGI-RAW dataset containing TMTT L1 tracks")
+options.register('outputDataset',1,VarParsing.VarParsing.multiplicity.singleton,VarParsing.VarParsing.varType.int,"Create GEN-SIM-DIGI-RAW dataset containing TMTT L1 tracks")
+
+
+options.register('job',0,VarParsing.VarParsing.multiplicity.singleton,VarParsing.VarParsing.varType.int,"No job.")
+options.register('outFile', 'ttbar-pu200-937relval-inputs',VarParsing.VarParsing.multiplicity.singleton,VarParsing.VarParsing.varType.string,"Output filename prefix.")
+options.register('outdir', '/eos/user/a/ashtipli/work/pf/ttbar-vf-integration-0p33-vf-assign',VarParsing.VarParsing.multiplicity.singleton,VarParsing.VarParsing.varType.string,"Output directory.")
 
 options.parseArguments()
 
 #--- input and output
 
-list = FileUtils.loadListFromFile(options.inputMC)
-readFiles = cms.untracked.vstring(*list)
+# list = FileUtils.loadListFromFile(options.inputMC)
+# readFiles = cms.untracked.vstring(*list)
 secFiles = cms.untracked.vstring()
 
-# Override input dataset.
+# override input dataset.
 #readFiles = cms.untracked.vstring('/store/user/ejclemen/L1TT/RelVal_932/WithTruthAssociation/TTbar/PU200/output_0.root')
 
 outputHistFile = options.histFile
@@ -67,7 +72,7 @@ if outputHistFile != "":
   process.TFileService = cms.Service("TFileService", fileName = cms.string(outputHistFile))
 
 process.source = cms.Source ("PoolSource",
-                            fileNames = readFiles,
+                            fileNames = cms.untracked.vstring(options.inputFiles),
                             secondaryFileNames = secFiles,
                             duplicateCheckMode = cms.untracked.string('noDuplicateCheck'),
                             # Following needed to read CMSSW 9 datasets with CMSSW 10
@@ -179,13 +184,31 @@ if options.outputDataset == 1:
       splitLevel = cms.untracked.int32(0),
       eventAutoFlushCompressedSize = cms.untracked.int32(5242880),
       outputCommands = process.RAWSIMEventContent.outputCommands,
-      fileName = cms.untracked.string('output_dataset.root'), ## ADAPT IT ##
+      # fileName = cms.untracked.string('output_dataset.root'), ## ADAPT IT ##
+      fileName = cms.untracked.string("%s/%s-%03i.root" % (options.outdir, options.outFile, options.job)),
       dataset = cms.untracked.PSet(
           filterName = cms.untracked.string(''),
           dataTier = cms.untracked.string('GEN-SIM')
       )
   )
   # Include TMTT L1 tracks, optionally excluding the debug ones only reconstructed by HT.
+  process.writeDataset.outputCommands.append('drop *')
+  process.writeDataset.outputCommands.append('keep *_TMTrackProducer_TML1TracksKF4*_*')
+  process.writeDataset.outputCommands.append('keep *_TTStubsFromPhase2TrackerDigis_StubAccepted_*')
+  process.writeDataset.outputCommands.append('keep *_TTStubAssociatorFromPixelDigis_StubAccepted_*')
+  process.writeDataset.outputCommands.append('keep *_TTClusterAssociatorFromPixelDigis_ClusterAccepted_*')
+  process.writeDataset.outputCommands.append('keep *_TTStubsFromPhase2TrackerDigis_ClusterAccepted_*')
+  process.writeDataset.outputCommands.append('keep recoGenParticles_genParticles_*_*')
+  process.writeDataset.outputCommands.append('keep *_ak4GenJetsNoNu_*_*')
+  process.writeDataset.outputCommands.append('keep *_genMetTrue_*_*')
+  process.writeDataset.outputCommands.append('keep *_addPileupInfo_*_*')
+  # "keep *_genParticles_*_*",
+  #  "keep *_ak4GenJetsNoNu_*_*",
+  #  "keep *_genMetTrue_*_*",  
+  process.writeDataset.outputCommands.append('keep *_mix_MergedTrackTruth_*')
+  process.writeDataset.outputCommands.append('keep ak4GenJetsNoNu_*_*_*')
+
+  # -- old
   process.writeDataset.outputCommands.append('keep  *_TMTrackProducer_TML1Tracks*_*')
   process.writeDataset.outputCommands.append('drop  *_TMTrackProducer_TML1TracksHT_*')
   # Include TMTT L1 track to truth associators.
